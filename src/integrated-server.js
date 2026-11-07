@@ -191,21 +191,8 @@ bot.callbackQuery("guide", async ctx => {
   );
 });
 
-bot.command("admin", async ctx => {
-  if (!isAdmin(ctx)) {
-    await ctx.reply("Access denied.");
-    return;
-  }
 
-  await ctx.reply(
-    "NPC Admin Panel",
-    {
-      reply_markup: new InlineKeyboard()
-        .text("Engine Status", "admin_engine").row()
-        .text("Active Jobs", "admin_jobs")
-    }
-  );
-});
+      
 
 bot.callbackQuery("admin_engine", async ctx => {
   await ctx.answerCallbackQuery();
