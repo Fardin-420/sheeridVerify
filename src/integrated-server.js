@@ -127,10 +127,17 @@ bot.on("message:text", async ctx => {
 
   await ctx.reply("Checking verification status...");
 
-  try {
-    const result = await checkVerification(message);
 
-    saveHistory(userId, {
+await ctx.reply(
+  `🔍 Verification link received.\n` +
+  `✅ Verification ID: ${id}\n` +
+  `⏳ Preparing verification task...`
+);
+
+try {
+  const result = await checkVerification(message);
+
+  saveHistory(userId, {
       id: result.id,
       step: result.step,
       checkedAt: new Date().toISOString()
