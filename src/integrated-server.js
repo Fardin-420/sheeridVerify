@@ -19,7 +19,9 @@ if (!BOT_TOKEN || !PUBLIC_URL || !WEBHOOK_SECRET) {
 }
 
 const bot = new Bot(BOT_TOKEN);
-const jobs = new WebJobs();
+const jobs = new WebJobs({
+  configFile: "/etc/secrets/sheerid.local.json"
+});
 
 let engineReady = false;
 
