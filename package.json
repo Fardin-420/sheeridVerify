@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "camoufox": "^0.5.9",
+    "grammy": "^1.38.0",
     "playwright-core": "^1.62.1",
     "proxy-chain": "^3.0.1",
     "undici": "^7.30.1"
