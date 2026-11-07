@@ -83,6 +83,99 @@ async function checkVerification(url) {
   };
 }
 
+const trackingJobs = new Map();
+const CHECK_INTERVAL_MS = 60_000;
+const MAX_TRACKING_MS = 24 * 60 * 60 * 1000;
+
+function isFinalVerification(result) {
+  return (
+    result.step === "success" ||
+    result.step === "verified" ||
+    result.step === "error" ||
+    result.step === "rejected" ||
+    (result.rejectionReasons?.length ?? 0) > 0
+  );
+}
+
+async function trackVerification(userId, url, id) {
+  const previous = trackingJobs.get(id);
+
+  if (previous) {
+    previous.subscribers.add(userId);
+    return;
+  }
+
+  const job = {
+    subscribers: new Set([userId]),
+    startedAt: Date.now(),
+    lastStatus: null,
+    failures: 0,
+    timer: null
+  };
+
+  trackingJobs.set(id, job);
+
+  async function check() {
+    if (trackingJobs.get(id) !== job) return;
+
+    try {
+      const result = await checkVerification(url);
+      job.failures = 0;
+
+      const status = JSON.stringify({
+        step: result.step,
+        errors: result.errors,
+        rejectionReasons: result.rejectionReasons
+      });
+
+      if (status !== job.lastStatus) {
+        job.lastStatus = status;
+
+        let text = `Verification: ${id}\nStatus: ${result.step}`;
+
+        if (result.step === "success" || result.step === "verified") {
+          text += "\nVerified by SheerID.";
+        } else if (result.rejectionReasons?.length) {
+          text += "\nVerification rejected.";
+        } else if (result.errors?.length) {
+          text += "\nErrors reported by SheerID.";
+        }
+
+        for (const subscriber of job.subscribers) {
+          try {
+            await bot.api.sendMessage(subscriber, text);
+          } catch (error) {
+            console.error("Telegram notification failed:", error.message);
+          }
+        }
+      }
+
+      if (isFinalVerification(result)) {
+        trackingJobs.delete(id);
+        return;
+      }
+    } catch (error) {
+      job.failures++;
+      console.error("Tracking failed:", id, error.message);
+
+      if (job.failures >= 5) {
+        trackingJobs.delete(id);
+        return;
+      }
+    }
+
+    if (Date.now() - job.startedAt >= MAX_TRACKING_MS) {
+      trackingJobs.delete(id);
+      return;
+    }
+
+    job.timer = setTimeout(check, CHECK_INTERVAL_MS);
+    job.timer.unref?.();
+  }
+
+  void check();
+}
+
 bot.command("start", async ctx => {
   await ctx.reply(
     "Welcome to NPC SheerID Verify!\n\nChoose an option:",
@@ -136,7 +229,7 @@ await ctx.reply(
 
 try {
   const result = await checkVerification(message);
-
+void trackVerification(userId, message, id);
   saveHistory(userId, {
       id: result.id,
       step: result.step,
